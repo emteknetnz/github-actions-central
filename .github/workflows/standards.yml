@@ -17,10 +17,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '7.4'
-          extensions: yaml
+          extensions: curl
 
       - name: Standards
         run: |
-          pwd
-          ls
-          php .github/workflows/standards/scan.php
+          php .github/workflows/standards/scan.php ${{ secrets.GITHUB_TOKEN }}
