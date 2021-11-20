@@ -21,6 +21,7 @@ function fetch($path) {
     ];
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    echo "Fetching from $path\n";
     $res = curl_exec($ch);
     curl_close($ch);
     return json_decode($res);
@@ -31,7 +32,7 @@ https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProces
 
 # work out the highest next-minor branch e.g. '4'
 $ref = 0;
-$json = $requester->fetch("/repos/$account/$repo/branches", '', $account, $repo, $refetch);
+$json = $requester->fetch("/repos/$account/$repo/branches");
 foreach ($json->root ?? [] as $branch) {
     if (!$branch) {
         continue;
