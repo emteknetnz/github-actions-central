@@ -6,9 +6,9 @@ $modules = MODULES['regular']['silverstripe'];
 $module = 'silverstripe-campaign-admin';
 
 $account = 'silverstripe';
-$repo = 'silverstripe-campaign-admin';
+$repo = 'silverstripe-asset-admin';
 
-// hit github api
+// github token
 $token = $argv[1];
 
 function fetch($path) {
@@ -32,33 +32,74 @@ function fetch($path) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $res = curl_exec($ch);
-    var_dump($res);
     curl_close($ch);
-    return json_decode($res);
+    $json = json_decode($res);
+    // files contents
+    if (strpos($path, '?ref') !== false) {
+        if ($json && ($json->message ?? '') != 'Not Found' && $json->content) {
+            return base64_decode($json->content);
+        }
+        return '';
+    }
+    // non file
+    return $json;
 }
 
-# otherwise newer standards
-https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProcessor.php
-
-# work out the highest next-minor branch e.g. '4'
-$ref = 0;
-$json = fetch("/repos/$account/$repo/branches");
-var_dump($json);
-foreach ($json->root ?? [] as $branch) {
-    if (!$branch) {
-        continue;
+// get the highest next-minor branch e.g. '4' which is assumed to be the default branch
+function getDefaultRef($account, $repo) {
+    $ref = 0;
+    $json = fetch("/repos/$account/$repo/branches");
+    var_dump($json);
+    foreach ($json ?? [] as $branch) {
+        if (!$branch) {
+            continue;
+        }
+        $name = $branch->name;
+        if (!preg_match('#^([1-9]+)$#', $name)) {
+            continue;
+        }
+        if ((int) $name > (int) $ref) {
+            $ref = $name;
+        }
     }
-    $name = $branch->name;
-    if (!preg_match('#^([1-9])$#', $name)) {
-        continue;
+    if (!$ref) {
+        $ref = 'master';
     }
-    if ((int) $name > (int) $ref) {
-        $ref = $name;
-    }
+    return $ref;
 }
-if (!$ref) {
-    $ref = 'master';
+
+// https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProcessor.php
+
+// get a list of composer requirements from old .travis files
+function getTravisComposerReqs($contents) {
+    $reqs = [];
+    $contents = str_replace(['"', "'"], '', $contents);
+    $arrs = [
+        ['REQUIRE_RECIPE_CORE', 'silverstripe/recipe-core'],
+        ['REQUIRE_INSTALLER', 'silverstripe/installer'],
+        ['REQUIRE_CWP_CWP_RECIPE_CMS', 'cwp/cwp-recipe-cms'],
+        ['REQUIRE_RECIPE_TESTING', 'silverstripe/recipe-testing'],
+        ['REQUIRE_FRAMEWORKTEST', 'silverstripe/frameworktest'],
+        ['REQUIRE_CWP_STARTER_THEME', 'silverstripe/cwp-starter-theme'],
+        ['REQUIRE_GRAPHQL', 'silverstripe/graphql'], // TODO ensure not in silverstripe/graphql now
+    ];
+    foreach (array_values($arrs) as $arr) {
+        list($var, $repo) = $arr;
+        if (preg_match("#$var=(.+?)(\n|$)#", $contents, $m)) {
+            $reqs[$repo] = $m[1];
+        }
+    }
+    if (preg_match("#REQUIRE_EXTRA=(.+?)(\n|$)#", $contents, $m)) {
+        foreach (explode(' ', $m[1]) as $s) {
+            list($repo, $ver) = preg_split('#[: ]#', $s);
+            $reqs[$repo] = $ver;
+        }
+    }
+    return $reqs;
 }
 
-$json = fetch("/repos/$account/$repo/contents/.travis.yml?ref=$ref");
-var_dump($json);
+$ref = getDefaultRef($account, $repo);
+if ($contents = fetch("/repos/$account/$repo/contents/.travis.yml?ref=$ref")) {
+    $reqs = getTravisComposerReqs($contents);
+    print_r($reqs);
+}
