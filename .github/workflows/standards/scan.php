@@ -3,7 +3,7 @@
 include('modules.php');
 
 $modules = MODULES['regular']['silverstripe'];
-$module = 'silverstripe-campaign-admin'
+$module = 'silverstripe-campaign-admin';
 
 $account = 'silverstripe';
 $repo = 'silverstripe-campaign-admin';
