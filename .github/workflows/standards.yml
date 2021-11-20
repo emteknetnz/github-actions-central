@@ -18,5 +18,6 @@ jobs:
 
       - name: Standards
         run: |
+          pwd
           ls
           php standards/scan.php
