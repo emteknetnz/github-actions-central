@@ -5,10 +5,14 @@ include('modules.php');
 $modules = MODULES['regular']['silverstripe'];
 $module = 'silverstripe-campaign-admin'
 
+$account = 'silverstripe';
+$repo = 'silverstripe-campaign-admin';
+
 // hit github api
 $token = $argv[1];
 
-function fetch($path, $token) {
+function fetch($path) {
+    global $token;
     $ch = curl_init();
     curl_setopt($ch ,CURLOPT_URL, 'https://api.github.com' . $path);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -17,13 +21,32 @@ function fetch($path, $token) {
     ];
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $res = curl_exec($tuCurl);
+    $res = curl_exec($ch);
     curl_close($ch);
-    return $res;
+    return json_decode($res);
 }
-
-# old standards is probably all that's needed
-# https://github.com/emteknetnz/silverstripe-community-info/blob/master/standards.php
 
 # otherwise newer standards
 https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProcessor.php
+
+# work out the highest next-minor branch e.g. '4'
+$ref = 0;
+$json = $requester->fetch("/repos/$account/$repo/branches", '', $account, $repo, $refetch);
+foreach ($json->root ?? [] as $branch) {
+    if (!$branch) {
+        continue;
+    }
+    $name = $branch->name;
+    if (!preg_match('#^([1-9])$#', $name)) {
+        continue;
+    }
+    if ((int) $name > (int) $ref) {
+        $ref = $name;
+    }
+}
+if (!$ref) {
+    $ref = 'master';
+}
+
+$json = fetch("/repos/$account/$repo/contents/.travis.yml?ref=$ref");
+var_dump($json);
