@@ -9,7 +9,6 @@ jobs:
     name: Standards
     runs-on: ubuntu-latest
     steps:
-      steps:
 
       - name: Install PHP
         uses: shivammathur/setup-php@v2
