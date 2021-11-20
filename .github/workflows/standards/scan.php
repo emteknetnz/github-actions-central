@@ -98,8 +98,41 @@ function getTravisComposerReqs($contents) {
     return $reqs;
 }
 
-$ref = getDefaultRef($account, $repo);
-if ($contents = fetch("/repos/$account/$repo/contents/.travis.yml?ref=$ref")) {
-    $reqs = getTravisComposerReqs($contents);
-    print_r($reqs);
+// SECURITY.md
+function getSecurityPolicy($contents) {
+    // TODO - probably compare with a template file in the repo
+    return 'exists';
 }
+
+// contributing.md
+function getContributing($contents) {
+    // TODO - probably compare with a template file in the repo
+    return 'exists';
+}
+
+// LICENSE
+function getLicense($contents) {
+    // TODO - probably compare with a template file in the repo
+    return 'exists';
+}
+
+
+$ref = getDefaultRef($account, $repo);
+$res = [];
+$arrs = [
+    ['.travis.yml', 'getTravisComposerReqs'],
+    ['.SECURITY.md', 'getSecurityPolicy'],
+    ['.contributing.md', 'getContributing'],
+    ['LICENSE', 'getLicense'],
+];
+foreach ($arrs as $arr) {
+    list($filename, $fn) = $arr;
+    $key = strtolower(substr($fn, 3, 1)) . substr($fn, 4);
+    if ($contents = fetch("/repos/$account/$repo/contents/$filename?ref=$ref")) {
+        $res[$key] = call_user_func($fn, $contents);
+    } else {
+        $res[$key] = 'missing';
+    }
+}
+
+print_r($res);
