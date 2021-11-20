@@ -23,4 +23,4 @@ jobs:
         run: |
           pwd
           ls
-          php standards/scan.php
+          php .github/workflows/standards/scan.php
