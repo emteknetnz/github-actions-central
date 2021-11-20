@@ -14,15 +14,25 @@ $token = $argv[1];
 function fetch($path) {
     global $token;
     $ch = curl_init();
-    curl_setopt($ch ,CURLOPT_URL, 'https://api.github.com' . $path);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accept: application/vnd.github.v3+json',
-        "Authorization: $token"
+    $url = 'https://api.github.com' . $path;
+    echo "Fetching from $url\n";
+    curl_setopt($ch ,CURLOPT_URL, $url);
+    $headers = [
+        'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:28.0) Gecko/20100101 Firefox/28.0',
+        'Accept: application/vnd.github.v3+json'
     ];
+    if (strpos($token, ':') !== false) {
+        // user:token style
+        curl_setopt($ch, CURLOPT_USERPWD, $token);
+    } else {
+        // token only
+        $headers[] = "Authorization: $token";
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    echo "Fetching from $path\n";
     $res = curl_exec($ch);
+    var_dump($res);
     curl_close($ch);
     return json_decode($res);
 }
@@ -32,7 +42,8 @@ https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProces
 
 # work out the highest next-minor branch e.g. '4'
 $ref = 0;
-$json = $requester->fetch("/repos/$account/$repo/branches");
+$json = fetch("/repos/$account/$repo/branches");
+var_dump($json);
 foreach ($json->root ?? [] as $branch) {
     if (!$branch) {
         continue;
