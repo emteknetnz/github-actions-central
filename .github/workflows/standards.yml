@@ -1,0 +1,23 @@
+name: standards
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  standards:
+    name: Standards
+    runs-on: ubuntu-latest
+    steps:
+      steps:
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          extensions: yaml
+
+      - name: Standards
+        run: |
+          ls
+          php standards/scan.php
