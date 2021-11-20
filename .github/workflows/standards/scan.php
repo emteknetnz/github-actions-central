@@ -49,7 +49,6 @@ function fetch($path) {
 function getDefaultRef($account, $repo) {
     $ref = 0;
     $json = fetch("/repos/$account/$repo/branches");
-    var_dump($json);
     foreach ($json ?? [] as $branch) {
         if (!$branch) {
             continue;
@@ -71,7 +70,7 @@ function getDefaultRef($account, $repo) {
 // https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProcessor.php
 
 // get a list of composer requirements from old .travis files
-function getTravisComposerReqs($contents) {
+function scanTravis($contents) {
     $reqs = [];
     $contents = str_replace(['"', "'"], '', $contents);
     $arrs = [
@@ -95,43 +94,51 @@ function getTravisComposerReqs($contents) {
             $reqs[$repo] = $ver;
         }
     }
-    return $reqs;
+    return ['reqs' => $reqs];
+}
+
+function compareToTemplate($contents, $filename) {
+    $contents = trim($contents);
+    $path = "templates/$filename";
+    if (!file_exists($path)) {
+        return 'template-missing';
+    }
+    return $contents == trim(file_get_contents($path)) ? 'up-to-date' : 'different';
 }
 
 // SECURITY.md
 function getSecurityPolicy($contents) {
-    // TODO - probably compare with a template file in the repo
-    return 'exists';
+    return compareToTemplate('SECURITY.MD', $contents);
 }
 
 // contributing.md
 function getContributing($contents) {
-    // TODO - probably compare with a template file in the repo
-    return 'exists';
+    return compareToTemplate('contributing.md', $contents);
 }
 
 // LICENSE
 function getLicense($contents) {
-    // TODO - probably compare with a template file in the repo
-    return 'exists';
+    return compareToTemplate('LICENSE', $contents);
 }
-
 
 $ref = getDefaultRef($account, $repo);
 $res = [];
 $arrs = [
-    ['.travis.yml', 'getTravisComposerReqs'],
-    ['.SECURITY.md', 'getSecurityPolicy'],
-    ['.contributing.md', 'getContributing'],
-    ['LICENSE', 'getLicense'],
+    ['.travis.yml', 'scanTravis'],
+    ['SECURITY.md', 'compareToTemplate'],
+    ['contributing.md', 'compareToTemplate'],
+    ['LICENSE', 'compareToTemplate'],
 ];
 foreach ($arrs as $arr) {
     list($filename, $fn) = $arr;
-    $key = strtolower(substr($fn, 3, 1)) . substr($fn, 4);
     if ($contents = fetch("/repos/$account/$repo/contents/$filename?ref=$ref")) {
-        $res[$key] = call_user_func($fn, $contents);
+        if ($fn == 'compareToTemplate') {
+            $res[$filename] = call_user_func($fn, $contents, $filename);
+        } else {
+            $res[$filename] = call_user_func($fn, $contents);
+        }
     } else {
-        $res[$key] = 'missing';
+        $res[$filename] = 'missing';
     }
 }
 
