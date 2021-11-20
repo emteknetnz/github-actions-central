@@ -22,4 +22,8 @@ function fetch($path, $token) {
     return $res;
 }
 
+# old standards is probably all that's needed
+# https://github.com/emteknetnz/silverstripe-community-info/blob/master/standards.php
 
+# otherwise newer standards
+https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProcessor.php
