@@ -1,16 +1,5 @@
 <?php
 
-include('modules.php');
-
-$modules = MODULES['regular']['silverstripe'];
-$module = 'silverstripe-campaign-admin';
-
-$account = 'silverstripe';
-$repo = 'silverstripe-asset-admin';
-
-// github token
-$token = $argv[1];
-
 function fetch($path) {
     global $token;
     $ch = curl_init();
@@ -70,7 +59,7 @@ function getDefaultRef($account, $repo) {
 // https://github.com/emteknetnz/rhino/blob/main/app/src/Processors/StandardsProcessor.php
 
 // get a list of composer requirements from old .travis files
-function scanTravis($contents) {
+function scanTravisYml($contents) {
     $reqs = [];
     $contents = str_replace(['"', "'"], '', $contents);
     $arrs = [
@@ -92,6 +81,21 @@ function scanTravis($contents) {
         foreach (explode(' ', $m[1]) as $s) {
             list($repo, $ver) = preg_split('#[: ]#', $s);
             $reqs[$repo] = $ver;
+        }
+    }
+    // key array return type in case we wnat to scan other things like provision used
+    return ['reqs' => $reqs];
+}
+
+function scanCiYml($contents) {
+    $reqs = [];
+    $contents = str_replace(['"', "'"], '', $contents);
+    $keys = [
+        'composer_require_extra',
+    ];
+    foreach ($keys as $key) {
+        if (preg_match("#$key: ?(.+?)(\n|$)#", $contents, $m)) {
+            $reqs[$key] = $m[1];
         }
     }
     return ['reqs' => $reqs];
@@ -124,7 +128,7 @@ function scanPackageJson($contents) {
 
 // simply check if the file exists, return a status
 function fileExists($contents) {
-    return $contents ? 'exists' : 'does-not-exist';
+    return 'exists';
 }
 
 // compare contents of file to a static content that should be consistent across repos
@@ -154,41 +158,43 @@ function getLicense($contents) {
     return compareToTemplate('LICENSE', $contents);
 }
 
-$ref = getDefaultRef($account, $repo);
-$res = [];
-$arrs = [
-    // scan contents of file
-    ['.travis.yml', 'scanTravis'],
-    ['composer.json', 'scanComposerJson'],
-    ['phpcs.xml.dist', 'scanPhpcsXmlDist'],
-    ['phpunit.xml.dist', 'scanPhpunitXmlDist'],
-    ['package.json', 'scanPackageJson'],
+function scan($account, $repo) {
+    $ref = getDefaultRef($account, $repo);
+    $scan = [];
+    $arrs = [
+        // scan contents of file
+        ['.travis.yml', 'scanTravisYml'],
+        ['.github/workflows/ci.yml', 'scanCiYml'],
+        ['composer.json', 'scanComposerJson'],
+        ['phpcs.xml.dist', 'scanPhpcsXmlDist'],
+        ['phpunit.xml.dist', 'scanPhpunitXmlDist'],
+        ['package.json', 'scanPackageJson'],
 
-    // file matches template
-    ['SECURITY.md', 'compareToTemplate'],
-    ['contributing.md', 'compareToTemplate'],
-    ['LICENSE', 'compareToTemplate'],
+        // file matches template
+        ['SECURITY.md', 'compareToTemplate'],
+        ['contributing.md', 'compareToTemplate'],
+        ['LICENSE', 'compareToTemplate'],
 
-    // file exists - note for auditing
-    ['scrutinizer.xml', 'fileExists'],
-    // files that should be deleted if they exist - logic to delete in a diff place though
-    ['composer.lock', 'fileExists']
-];
-foreach ($arrs as $arr) {
-    list($filename, $fn) = $arr;
-    if ($contents = fetch("/repos/$account/$repo/contents/$filename?ref=$ref")) {
-        if ($fn == 'compareToTemplate') {
-            $res[$filename] = call_user_func($fn, $contents, $filename);
+        // file exists - note for auditing
+        ['scrutinizer.xml', 'fileExists'],
+        // files that should be deleted if they exist - logic to delete in a diff place though
+        ['composer.lock', 'fileExists']
+    ];
+    foreach ($arrs as $arr) {
+        list($filename, $fn) = $arr;
+        if ($contents = fetch("/repos/$account/$repo/contents/$filename?ref=$ref")) {
+            if ($fn == 'compareToTemplate') {
+                $scan[$filename] = call_user_func($fn, $contents, $filename);
+            } else {
+                $scan[$filename] = call_user_func($fn, $contents);
+            }
         } else {
-            $res[$filename] = call_user_func($fn, $contents);
+            $scan[$filename] = 'missing';
         }
-    } else {
-        $res[$filename] = 'missing';
     }
+    print_r($scan);
+    return $scan;
 }
-
-print_r($res);
-
 # list of repos, loop
 # list of files to scan
 # templates to compare against
