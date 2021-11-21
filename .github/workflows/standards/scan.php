@@ -97,6 +97,16 @@ function scanTravis($contents) {
     return ['reqs' => $reqs];
 }
 
+// ensure that comopser requires correct php version, phpunit, etc
+function scanComposerJson($contents) {
+    $reqs = [];
+    $json = json_decode($contents);
+    $reqs['phpunit'] = $json->{'require-dev'}->{'phpunit/phpunit'} ?? '';
+    $reqs['recipe-testing'] = $json->{'require-dev'}->{'silverstripe/recipe-testing'} ?? '';
+    $reqs['php'] = $json->{'require'}->{'php'} ?? '';
+    return ['reqs' => $reqs]
+}
+
 function compareToTemplate($contents, $filename) {
     $contents = trim($contents);
     $path = "templates/$filename";
@@ -125,6 +135,7 @@ $ref = getDefaultRef($account, $repo);
 $res = [];
 $arrs = [
     ['.travis.yml', 'scanTravis'],
+    ['composer.json', 'scanComposerJson'],
     ['SECURITY.md', 'compareToTemplate'],
     ['contributing.md', 'compareToTemplate'],
     ['LICENSE', 'compareToTemplate'],
@@ -143,3 +154,41 @@ foreach ($arrs as $arr) {
 }
 
 print_r($res);
+
+# list of repos, loop
+# list of files to scan
+# templates to compare against
+# check if they're the same, add status to output
+# for other files, get info e.g. travis deps
+# also copy in template that should be used if chages need to be made
+# 2nd process, take use previous output as input
+# loop input
+# for everything that needs updating, hit the API with POST/PATCH
+# pull-request to update everything as needed in one go as gha user
+# 
+
+# files that are the same no matter what - add in latest template
+# if missing or doesn't match tempalte
+# SECURITY.md
+# LICENSE
+# contributing.md
+
+# files that require introspection
+# .travis.yml
+# - deps - will use for gha composer_require_extra
+# - provision? relevant if self and means don't use installer
+# composer.json
+# - phpunit, recipe-testing version, etc
+# phpcs.xml.dist
+# phpunit.xml.dist
+# package.json?
+
+# files that we're checking if they exist just for auditing
+# - scrutinezer.json
+# - codecov
+
+# files that we're checking if they exist and if so delete
+# - composer.lock
+# - package.shrinkwrap
+# - whatever that old code checker thing was on framework
+
