@@ -128,8 +128,7 @@ function fileExists($contents) {
 }
 
 // compare contents of file to a static content that should be consistent across repos
-// will return a status, or a copy of the template to copy in
-// ^ TODO: maybe a bit much putting the whole template in
+// will return a status, or the path of the static template to copy in
 function compareToTemplate($contents, $filename) {
     $contents = trim($contents);
     $path = "templates/$filename";
@@ -137,7 +136,7 @@ function compareToTemplate($contents, $filename) {
         return 'template-missing';
     }
     $templateContents = file_get_contents($path);
-    return $contents == trim($templateContents) ? 'up-to-date' : $templateContents;
+    return $contents == trim($templateContents) ? 'up-to-date' : $path;
 }
 
 // SECURITY.md
