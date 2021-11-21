@@ -104,16 +104,40 @@ function scanComposerJson($contents) {
     $reqs['phpunit'] = $json->{'require-dev'}->{'phpunit/phpunit'} ?? '';
     $reqs['recipe-testing'] = $json->{'require-dev'}->{'silverstripe/recipe-testing'} ?? '';
     $reqs['php'] = $json->{'require'}->{'php'} ?? '';
-    return ['reqs' => $reqs]
+    return ['reqs' => $reqs];
 }
 
+// ensure that it's got a src + test node?
+function scanPhpcsXmlDist($contents) {
+
+}
+
+// ensure it has a <testsuites> node, and a default or a list of suites?
+function scanPhpunitXmlDist($contents) {
+    
+}
+
+// not sure? kind of the job of update-js-deps
+function scanPackageJson($contents) {
+    
+}
+
+// simply check if the file exists, return a status
+function fileExists($contents) {
+    return $contents ? 'exists' : 'does-not-exist';
+}
+
+// compare contents of file to a static content that should be consistent across repos
+// will return a status, or a copy of the template to copy in
+// ^ TODO: maybe a bit much putting the whole template in
 function compareToTemplate($contents, $filename) {
     $contents = trim($contents);
     $path = "templates/$filename";
     if (!file_exists($path)) {
         return 'template-missing';
     }
-    return $contents == trim(file_get_contents($path)) ? 'up-to-date' : 'different';
+    $templateContents = file_get_contents($path);
+    return $contents == trim($templateContents) ? 'up-to-date' : $templateContents;
 }
 
 // SECURITY.md
@@ -134,11 +158,22 @@ function getLicense($contents) {
 $ref = getDefaultRef($account, $repo);
 $res = [];
 $arrs = [
+    // scan contents of file
     ['.travis.yml', 'scanTravis'],
     ['composer.json', 'scanComposerJson'],
+    ['phpcs.xml.dist', 'scanPhpcsXmlDist'],
+    ['phpunit.xml.dist', 'scanPhpunitXmlDist'],
+    ['package.json', 'scanPackageJson'],
+
+    // file matches template
     ['SECURITY.md', 'compareToTemplate'],
     ['contributing.md', 'compareToTemplate'],
     ['LICENSE', 'compareToTemplate'],
+
+    // file exists - note for auditing
+    ['scrutinizer.xml', 'fileExists'],
+    // files that should be deleted if they exist - logic to delete in a diff place though
+    ['composer.lock', 'fileExists']
 ];
 foreach ($arrs as $arr) {
     list($filename, $fn) = $arr;
@@ -173,7 +208,7 @@ print_r($res);
 # LICENSE
 # contributing.md
 
-# files that require introspection
+# files that require scanning
 # .travis.yml
 # - deps - will use for gha composer_require_extra
 # - provision? relevant if self and means don't use installer
