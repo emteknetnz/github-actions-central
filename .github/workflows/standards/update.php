@@ -1,7 +1,12 @@
 <?php
 
-// looks at the result of scan, decides if should clone repo and create pull-request
 
+// TODO: Really should combine the 'update' logic with 'scan' and 'doUpdate'
+// .. so that scan also creates the new content.
+// then based on the scan we have enough info to know if we update things
+// right now there's lots of duplicate logic
+
+// looks at the result of scan, decides if should clone repo and create pull-request
 // this needs to create a pull-request with the relevant changes
 // - git clone the module that needs updating?
 // - run git commands via shell_exec()
@@ -14,7 +19,9 @@
 
 $phpReq = '^7.3 || ^8.0';
 $phpunitReq = '^9.5';
+$frameworkReq = '^4.10'; // minimum required for phpunit9 support
 $recipeTestingReq = '^2';
+$phpcsReq = '^3';
 
 // TODO: should be shared array with scan.php:scan().$arrs
 $shouldExist = [
@@ -25,7 +32,7 @@ $shouldBeMissing = [
     '.travis.yml'
 ];
 
-$shouldByUpToDate = [
+$shouldBeUpToDate = [
     'SECURITY.md',
     'contributing.md',
     'LICENSE'
@@ -129,12 +136,59 @@ function updateCiYml($repo, $scan) {
     updateRepoFile($repo, $path, $contents);
 }
 
+// update if framework <=4.9
+function doUpdateFramework($req) {
+    $v = str_replace(['^', '~', '.x-dev'], '', $req);
+    return (bool) preg_match('#^4\.[0-9]$#', $v);
+}
+
+function updateComposerJson($repo) {
+    // assume that composer.json is always present
+    global $phpReq, $phpunitReq, $phpcsReq, $recipeTestingReq, $frameworkReq;
+    $path = 'composer.json';
+    $contents = getRepoFileContents($repo, $path);
+    $json = json_decode($contents);
+    $json->require->php = $phpReq;
+    $json->{'require-dev'}->{'phpunit/phpunit'} = $phpunitReq;
+    if (isset($json->{'require'}->{'silverstripe/framework'})) {
+        if (doUpdateFramework($json->{'require'}->{'silverstripe/framework'})) {
+            $json->{'require'}->{'silverstripe/framework'} = $frameworkReq;
+        }
+    } else {
+        $json->{'require-dev'}->{'silverstripe/framework'} = $frameworkReq;
+    }
+    if (isset($json->{'require-dev'}->{'silverstripe/recipe-testing'})) {
+        $json->{'require-dev'}->{'silverstripe/recipe-testing'} = $recipeTestingReq;
+    } else {
+        $json->{'require-dev'}->{'squizlabs/php_codesniffer'} = $phpcsReq;
+    }
+    $json->{'minimum-stability'} = 'dev';
+    $json->{'prefer-stable'} = 'true';
+    $contents = json_encode($contents, JSON_PRETTY_PRINT);
+    updateRepoFile($repo, $path, $contents);
+}
+
+// update SECURITY.md, etc
+function updateShouldBeUpToDate($repo, $filename) {
+    $templatePath = "templates/$filename";
+    if (!file_exists($templatePath)) {
+        return;
+    }
+    $contents = file_get_contents($templatePath);
+    updateRepoFile($repo, $filename, $contents);
+}
+
 function update($account, $repo, $scan) {
-    $doUpdate = getDoUpdate($account, $repo, $scan);
+    global $shouldBeUpToDate;
+    $doUpdate = getDoUpdate($scan);
     if (!$doUpdate) {
         echo "Everything up to date in $account/$repo, not creating pull-request\n";
         return;
     }
     initRepo($account, $repo);
     updateCiYml($repo, $scan);
+    updateComposerJson($repo);
+    foreach ($shouldBeUpToDate as $filename) {
+        updateShouldBeUpToDate($repo, $filename);
+    }
 }
