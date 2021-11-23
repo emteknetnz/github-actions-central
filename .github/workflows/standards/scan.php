@@ -35,7 +35,12 @@ function fetch($path) {
 }
 
 // get the highest next-minor branch e.g. '4' which is assumed to be the default branch
+$defaultRefs = [];
 function getDefaultRef($account, $repo) {
+    global $defaultRefs;
+    if (isset($defaultRefs["$account-$repo"])) {
+        return $defaultRefs["$account-$repo"];
+    }
     $ref = 0;
     $json = fetch("/repos/$account/$repo/branches");
     foreach ($json ?? [] as $branch) {
@@ -53,6 +58,7 @@ function getDefaultRef($account, $repo) {
     if (!$ref) {
         $ref = 'master';
     }
+    $defaultRefs["$account-$repo"] = $ref;
     return $ref;
 }
 

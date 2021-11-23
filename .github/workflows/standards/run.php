@@ -11,7 +11,7 @@ $modules = MODULES['regular']['silverstripe'];
 $module = 'silverstripe-campaign-admin';
 
 $account = 'silverstripe';
-$repo = 'silverstripe-asset-admin';
+$repo = 'silverstripe-asset-admin'; // has custom .travis reqs
 
 $scan = scan($account, $repo);
 update($account, $repo, $scan);
