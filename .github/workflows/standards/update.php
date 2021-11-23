@@ -17,11 +17,17 @@
 
 // exists | missing | up-to-date | template-missing | <template-path>
 
+// composer.json
 $phpReq = '^7.3 || ^8.0';
 $phpunitReq = '^9.5';
 $frameworkReq = '^4.10'; // minimum required for phpunit9 support
 $recipeTestingReq = '^2';
 $phpcsReq = '^3';
+
+// package.json
+// TODO: need to do a semver check and only update if this is higher that what's there
+// i.e. don't downgrade ^0.1.1 to ^0.1.0
+$esLintReq = '^0.1.0';
 
 // TODO: should be shared array with scan.php:scan().$arrs
 $shouldExist = [
